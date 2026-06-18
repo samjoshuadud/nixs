@@ -127,8 +127,10 @@ func runOptsSearch(query string) error {
 
 func resolveChannel(c string) string {
 	switch c {
-	case "stable", "24.11":
-		return "24.11"
+	case "stable", "25.11":
+		return "25.11"
+	case "26.05":
+		return "26.05"
 	default:
 		return "unstable"
 	}
