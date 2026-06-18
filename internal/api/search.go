@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -14,6 +15,8 @@ const (
 	authPass = "X8gPHnzL52wFEekuxsfQ9cSh"
 	// Schema version — NixOS bumps this periodically
 	esSchema = "48"
+
+	hmBaseURL = "https://home-manager-options.extranix.com/data"
 )
 
 // Package represents a nixpkgs package result
@@ -47,6 +50,29 @@ type esResponse struct {
 			Source json.RawMessage `json:"_source"`
 		} `json:"hits"`
 	} `json:"hits"`
+}
+
+type hmOption struct {
+	Title       string          `json:"title"`
+	Description string          `json:"description"`
+	Type        string          `json:"type"`
+	Default     json.RawMessage `json:"default"`
+	Example     json.RawMessage `json:"example"`
+}
+
+func rawToString(raw json.RawMessage) string {
+	if raw == nil || string(raw) == "null" {
+		return ""
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	return string(raw)
+}
+
+type hmResponse struct {
+	Options []hmOption `json:"options"`
 }
 
 func SearchPackages(query, channel string, max int) ([]Package, error) {
@@ -86,39 +112,72 @@ func SearchPackages(query, channel string, max int) ([]Package, error) {
 }
 
 func SearchOptions(query, channel string, max int) ([]Option, error) {
-	optChannel := fmt.Sprintf("latest-%s-nixos-%s-options", esSchema, channel)
 	body := map[string]any{
 		"from": 0,
 		"size": max,
 		"query": map[string]any{
-			"multi_match": map[string]any{
-				"query":  query,
-				"fields": []string{"option_name^6", "option_description^1"},
-				"type":   "cross_fields",
+			"bool": map[string]any{
+				"must": []any{
+					map[string]any{
+						"multi_match": map[string]any{
+							"query":  query,
+							"fields": []string{"option_name^6", "option_description^1"},
+							"type":   "cross_fields",
+						},
+					},
+				},
+				"filter": []any{
+					map[string]any{
+						"term": map[string]any{
+							"type": "option",
+						},
+					},
+				},
 			},
 		},
 	}
 
-	url := fmt.Sprintf("%s/%s/_search", baseURL, optChannel)
+	url := fmt.Sprintf("%s/latest-%s-nixos-%s/_search", baseURL, esSchema, channel)
 	return doOptionRequest(url, body)
 }
 
 func SearchHomeManager(query string, max int) ([]Option, error) {
-	body := map[string]any{
-		"from": 0,
-		"size": max,
-		"query": map[string]any{
-			"multi_match": map[string]any{
-				"query":  query,
-				"fields": []string{"option_name^6", "option_description^1"},
-				"type":   "cross_fields",
-			},
-		},
+	url := fmt.Sprintf("%s/options-master.json", hmBaseURL)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch Home Manager options: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Home Manager options API returned %d", resp.StatusCode)
 	}
 
-	// Home Manager uses its own index
-	url := fmt.Sprintf("%s/latest-%s-home-manager/_search", baseURL, esSchema)
-	return doOptionRequest(url, body)
+	var data hmResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to decode Home Manager options: %w", err)
+	}
+
+	queryLower := strings.ToLower(query)
+	var results []Option
+	for _, o := range data.Options {
+		nameLower := strings.ToLower(o.Title)
+		descLower := strings.ToLower(o.Description)
+		if strings.Contains(nameLower, queryLower) || strings.Contains(descLower, queryLower) {
+			results = append(results, Option{
+				Name:        o.Title,
+				Description: o.Description,
+				Type:        o.Type,
+				Default:     rawToString(o.Default),
+				Example:     rawToString(o.Example),
+			})
+			if len(results) >= max {
+				break
+			}
+		}
+	}
+	return results, nil
 }
 
 func doRequest(url string, body any) (*esResponse, error) {
