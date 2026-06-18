@@ -15,6 +15,7 @@ var (
 	searchPkg  bool
 	searchHM   bool
 	searchOpts bool
+	stable     bool
 	maxResults int
 )
 
@@ -30,6 +31,10 @@ var rootCmd = &cobra.Command{
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		query := args[0]
+
+		if stable {
+			channel = "stable"
+		}
 
 		if searchPkg {
 			return runPackageSearch(query, showInfo)
@@ -67,6 +72,7 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().StringVarP(&channel, "channel", "c", "unstable", "nixpkgs channel (unstable, stable)")
+	rootCmd.Flags().BoolVar(&stable, "stable", false, "search stable channel (alias for -c stable)")
 	rootCmd.Flags().BoolVarP(&showInfo, "info", "i", false, "show full package details")
 	rootCmd.Flags().BoolVar(&searchPkg, "pkg", false, "search packages only")
 	rootCmd.Flags().BoolVar(&searchHM, "hm", false, "search Home Manager options only")
