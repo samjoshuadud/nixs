@@ -2,6 +2,8 @@ package display
 
 import (
 	"fmt"
+	"html"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -40,11 +42,10 @@ func PrintPackageList(packages []api.Package) {
 		if len(p.Programs) > 0 {
 			fmt.Println("    " + dimStyle.Render("programs: "+strings.Join(p.Programs, ", ")))
 		}
-
-		fmt.Println()
 	}
 
-	fmt.Printf(dimStyle.Render("  %d result(s)\n"), len(packages))
+	fmt.Println()
+	fmt.Printf(dimStyle.Render("  → %d results\n"), len(packages))
 }
 
 // PrintPackageInfo prints detailed info like pacman -Si
@@ -117,17 +118,18 @@ func PrintOptionList(options []api.Option, source string) {
 		if o.Example != "" {
 			fmt.Println("    " + dimStyle.Render("example: "+o.Example))
 		}
-
-		fmt.Println()
 	}
 
-	fmt.Printf(dimStyle.Render("  %d result(s) from %s\n"), len(options), source)
+	fmt.Println()
+	fmt.Printf(dimStyle.Render("  → %d results from %s\n"), len(options), source)
 }
 
 func printField(label, value string) {
 	padded := fmt.Sprintf("%-14s", label)
 	fmt.Printf("%s: %s\n", labelStyle.Render(padded), value)
 }
+
+var roleRegex = regexp.MustCompile(`\{(file|command|env|option)\}\x60([^\x60]*)\x60`)
 
 func stripHTML(s string) string {
 	var result strings.Builder
@@ -145,5 +147,8 @@ func stripHTML(s string) string {
 			result.WriteRune(r)
 		}
 	}
-	return strings.TrimSpace(result.String())
+	s = result.String()
+	s = html.UnescapeString(s)
+	s = roleRegex.ReplaceAllString(s, "$2")
+	return strings.TrimSpace(s)
 }
