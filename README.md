@@ -61,17 +61,22 @@ Include it in your home.packages:
 
 ## Usage
 
-Search packages (default):
+Search all ecosystems concurrently (Packages, NixOS Options, and Home Manager Options):
 ```bash
 nixs neovim
 ```
 
-Search Home Manager options:
+Search packages only:
+```bash
+nixs --pkg neovim
+```
+
+Search Home Manager options only:
 ```bash
 nixs --hm neovim
 ```
 
-Search NixOS system options:
+Search NixOS options only:
 ```bash
 nixs --opt services.nginx
 ```

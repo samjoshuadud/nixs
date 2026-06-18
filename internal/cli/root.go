@@ -24,10 +24,11 @@ var rootCmd = &cobra.Command{
 	Use:   "nixs <query>",
 	Short: "A fast, unified Nix package and option search",
 	Long:  `nixs — search nixpkgs, NixOS options, and Home Manager options from one place.`,
-	Example: `  nixs firefox              # search packages
+	Example: `  nixs firefox              # search all ecosystems concurrently
+  nixs --pkg firefox        # search packages only
   nixs -i firefox           # show full package info
-  nixs --hm neovim          # search Home Manager options
-  nixs --opt services.nginx # search NixOS options
+  nixs --hm neovim          # search Home Manager options only
+  nixs --opt services.nginx # search NixOS options only
   nixs --stable firefox     # search stable channel`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
