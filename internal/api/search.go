@@ -299,3 +299,45 @@ func probeSchema(schema, channel string) bool {
 	resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
 }
+
+// GetLatestStableChannel dynamically queries the ES aliases to find the highest stable channel (e.g. "25.11", "26.05").
+func GetLatestStableChannel() string {
+	url := fmt.Sprintf("%s/_cat/aliases?format=json", baseURL)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "25.11" // fallback
+	}
+	req.SetBasicAuth(authUser, authPass)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return "25.11"
+	}
+	defer resp.Body.Close()
+
+	var aliases []struct {
+		Alias string `json:"alias"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&aliases); err != nil {
+		return "25.11"
+	}
+
+	var best string
+	for _, a := range aliases {
+		// e.g. "latest-48-nixos-25.11"
+		if strings.Contains(a.Alias, "nixos-") && !strings.Contains(a.Alias, "unstable") {
+			parts := strings.Split(a.Alias, "nixos-")
+			if len(parts) == 2 {
+				cand := parts[1]
+				if best == "" || cand > best {
+					best = cand
+				}
+			}
+		}
+	}
+
+	if best == "" {
+		return "25.11"
+	}
+	return best
+}
