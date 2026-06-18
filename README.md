@@ -66,6 +66,11 @@ Search packages (default):
 nixs neovim
 ```
 
+Search across all ecosystems concurrently (Packages, NixOS Options, and Home Manager Options):
+```bash
+nixs --all neovim
+```
+
 Search Home Manager options:
 ```bash
 nixs --hm neovim
