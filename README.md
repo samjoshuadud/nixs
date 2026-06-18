@@ -2,6 +2,8 @@
 
 nixs is a unified CLI tool for searching Nix packages, NixOS options, and Home Manager options from a single interface. It directly queries the search.nixos.org Elasticsearch backend to provide fast, formatted results without requiring local flake evaluation.
 
+[![asciicast](https://asciinema.org/a/VRtdj9woF81TQ0TT.svg)](https://asciinema.org/a/VRtdj9woF81TQ0TT)
+
 ## Features
 
 - Unified search for nixpkgs, NixOS options, and Home Manager options.
