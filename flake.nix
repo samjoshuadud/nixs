@@ -31,7 +31,7 @@
           pname = "nixs";
           version = "0.1.0";
           src = ./.;
-          vendorHash = null; 
+          vendorHash = "sha256-VezcMmyQUPEzqeu3DNcslT3MWr/8XbyB2iZTX+yTDQI=";
         };
       });
 }
