@@ -32,7 +32,7 @@ func PrintPackageList(packages []api.Package) {
 		fmt.Println(line)
 
 		// description
-		desc := p.Description
+		desc := cleanText(p.Description)
 		if desc == "" {
 			desc = "(no description)"
 		}
@@ -45,7 +45,7 @@ func PrintPackageList(packages []api.Package) {
 	}
 
 	fmt.Println()
-	fmt.Printf(dimStyle.Render("  → %d results\n"), len(packages))
+	fmt.Println(dimStyle.Render(fmt.Sprintf("  → %d results", len(packages))))
 }
 
 // PrintPackageInfo prints detailed info like pacman -Si
@@ -103,25 +103,23 @@ func PrintOptionList(options []api.Option, source string) {
 			fmt.Println("    " + typeStyle.Render("type: "+o.Type))
 		}
 
-		desc := o.Description
+		desc := cleanText(stripHTML(o.Description))
 		if desc == "" {
 			desc = "(no description)"
 		}
-		// strip HTML tags that sometimes appear in descriptions
-		desc = stripHTML(desc)
 		fmt.Println("    " + descStyle.Render(desc))
 
 		if o.Default != "" && o.Default != "null" {
-			fmt.Println("    " + dimStyle.Render("default: "+o.Default))
+			fmt.Println("    " + dimStyle.Render("default: "+cleanCode(o.Default)))
 		}
 
 		if o.Example != "" {
-			fmt.Println("    " + dimStyle.Render("example: "+o.Example))
+			fmt.Println("    " + dimStyle.Render("example: "+cleanCode(o.Example)))
 		}
 	}
 
 	fmt.Println()
-	fmt.Printf(dimStyle.Render("  → %d results from %s\n"), len(options), source)
+	fmt.Println(dimStyle.Render(fmt.Sprintf("  → %d results from %s", len(options), source)))
 }
 
 func printField(label, value string) {
@@ -130,6 +128,60 @@ func printField(label, value string) {
 }
 
 var roleRegex = regexp.MustCompile(`\{(file|command|env|option|manpage)\}\x60([^\x60]*)\x60`)
+
+// cleanText trims trailing whitespace, drops leading/trailing blank lines,
+// and re-flows soft-wrapped prose paragraphs from the API's fixed-column output.
+func cleanText(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " \t\r")
+	}
+
+	// Re-flow: join continuation lines (non-blank lines that have no leading
+	// whitespace and are not the first line) back onto the previous line.
+	var reflowed []string
+	for i, l := range lines {
+		if i == 0 {
+			reflowed = append(reflowed, l)
+			continue
+		}
+		prev := reflowed[len(reflowed)-1]
+		// A continuation line: non-empty, doesn't start with whitespace,
+		// and the previous line was also non-empty.
+		if l != "" && !strings.HasPrefix(l, " ") && !strings.HasPrefix(l, "\t") && prev != "" {
+			reflowed[len(reflowed)-1] = prev + " " + l
+		} else {
+			reflowed = append(reflowed, l)
+		}
+	}
+	lines = reflowed
+
+	// Drop leading blank lines.
+	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
+		lines = lines[1:]
+	}
+	// Drop trailing blank lines.
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return strings.Join(lines, "\n")
+}
+
+// cleanCode trims trailing whitespace and blank edges but preserves
+// internal structure (used for default/example code blocks).
+func cleanCode(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " \t\r")
+	}
+	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
+		lines = lines[1:]
+	}
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return strings.Join(lines, "\n")
+}
 
 func stripHTML(s string) string {
 	var result strings.Builder
