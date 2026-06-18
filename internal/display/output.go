@@ -5,6 +5,7 @@ import (
 	"html"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/samjoshuadud/nixs/internal/api"
@@ -36,6 +37,7 @@ func PrintPackageList(packages []api.Package) {
 		if desc == "" {
 			desc = "(no description)"
 		}
+		desc = strings.ReplaceAll(desc, "\n", "\n    ")
 		fmt.Println("    " + descStyle.Render(desc))
 
 		// programs provided
@@ -111,14 +113,19 @@ func PrintOptionList(options []api.Option, source string) {
 		if desc == "" {
 			desc = "(no description)"
 		}
+		desc = strings.ReplaceAll(desc, "\n", "\n    ")
 		fmt.Println("    " + descStyle.Render(desc))
 
 		if o.Default != "" && o.Default != "null" {
-			fmt.Println("    " + dimStyle.Render("default: "+cleanCode(o.Default)))
+			def := cleanCode(o.Default)
+			def = strings.ReplaceAll(def, "\n", "\n             ")
+			fmt.Println("    " + dimStyle.Render("default: "+def))
 		}
 
 		if o.Example != "" {
-			fmt.Println("    " + dimStyle.Render("example: "+cleanCode(o.Example)))
+			ex := cleanCode(o.Example)
+			ex = strings.ReplaceAll(ex, "\n", "\n             ")
+			fmt.Println("    " + dimStyle.Render("example: "+ex))
 		}
 	}
 
@@ -128,6 +135,7 @@ func PrintOptionList(options []api.Option, source string) {
 
 func printField(label, value string) {
 	padded := fmt.Sprintf("%-14s", label)
+	value = strings.ReplaceAll(value, "\n", "\n                ")
 	fmt.Printf("%s: %s\n", labelStyle.Render(padded), value)
 }
 
@@ -138,7 +146,7 @@ var roleRegex = regexp.MustCompile(`\{(file|command|env|option|manpage)\}\x60([^
 func cleanText(s string) string {
 	lines := strings.Split(s, "\n")
 	for i, l := range lines {
-		lines[i] = strings.TrimRight(l, " \t\r")
+		lines[i] = strings.TrimSpace(l)
 	}
 
 	// Re-flow: join continuation lines (non-blank lines that have no leading
@@ -150,9 +158,10 @@ func cleanText(s string) string {
 			continue
 		}
 		prev := reflowed[len(reflowed)-1]
-		// A continuation line: non-empty, doesn't start with whitespace,
+		isList := strings.HasPrefix(l, "- ") || strings.HasPrefix(l, "* ")
+		// A continuation line: non-empty, not a list item,
 		// and the previous line was also non-empty.
-		if l != "" && !strings.HasPrefix(l, " ") && !strings.HasPrefix(l, "\t") && prev != "" {
+		if l != "" && !isList && prev != "" {
 			reflowed[len(reflowed)-1] = prev + " " + l
 		} else {
 			reflowed = append(reflowed, l)
@@ -176,7 +185,7 @@ func cleanText(s string) string {
 func cleanCode(s string) string {
 	lines := strings.Split(s, "\n")
 	for i, l := range lines {
-		lines[i] = strings.TrimRight(l, " \t\r")
+		lines[i] = strings.TrimRightFunc(l, unicode.IsSpace)
 	}
 	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
 		lines = lines[1:]
@@ -188,7 +197,7 @@ func cleanCode(s string) string {
 }
 
 func stripHTML(s string) string {
-	s = strings.ReplaceAll(s, "<li>", "\n  - ")
+	s = strings.ReplaceAll(s, "<li>", "\n- ")
 	s = strings.ReplaceAll(s, "<p>", "\n")
 	s = strings.ReplaceAll(s, "</p>", "\n")
 	s = strings.ReplaceAll(s, "<br>", "\n")
