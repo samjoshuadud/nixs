@@ -32,7 +32,7 @@ func PrintPackageList(packages []api.Package) {
 		fmt.Println(line)
 
 		// description
-		desc := cleanText(p.Description)
+		desc := cleanText(stripHTML(p.Description))
 		if desc == "" {
 			desc = "(no description)"
 		}
@@ -76,6 +76,10 @@ func PrintPackageInfo(p api.Package) {
 	desc := p.Description
 	if p.LongDesc != "" {
 		desc = p.LongDesc
+	}
+	desc = cleanText(stripHTML(desc))
+	if desc == "" {
+		desc = "(no description)"
 	}
 	printField("Description", desc)
 
@@ -184,6 +188,13 @@ func cleanCode(s string) string {
 }
 
 func stripHTML(s string) string {
+	s = strings.ReplaceAll(s, "<li>", "\n  - ")
+	s = strings.ReplaceAll(s, "<p>", "\n")
+	s = strings.ReplaceAll(s, "</p>", "\n")
+	s = strings.ReplaceAll(s, "<br>", "\n")
+	s = strings.ReplaceAll(s, "<br/>", "\n")
+	s = strings.ReplaceAll(s, "<br />", "\n")
+
 	var result strings.Builder
 	inTag := false
 	for _, r := range s {
@@ -202,5 +213,10 @@ func stripHTML(s string) string {
 	s = result.String()
 	s = html.UnescapeString(s)
 	s = roleRegex.ReplaceAllString(s, "$2")
+	
+	for strings.Contains(s, "\n\n\n") {
+		s = strings.ReplaceAll(s, "\n\n\n", "\n\n")
+	}
+
 	return strings.TrimSpace(s)
 }
