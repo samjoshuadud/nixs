@@ -90,3 +90,7 @@ Limit the number of results:
 ```bash
 nixs -m 5 python
 ```
+
+## Acknowledgements
+
+- [DariusCorvus/search-nix](https://github.com/DariusCorvus/search-nix) - This project served as great inspiration for our Elasticsearch query optimizations and schema fallback mechanics.
