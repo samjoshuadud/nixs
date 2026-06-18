@@ -129,7 +129,7 @@ func printField(label, value string) {
 	fmt.Printf("%s: %s\n", labelStyle.Render(padded), value)
 }
 
-var roleRegex = regexp.MustCompile(`\{(file|command|env|option)\}\x60([^\x60]*)\x60`)
+var roleRegex = regexp.MustCompile(`\{(file|command|env|option|manpage)\}\x60([^\x60]*)\x60`)
 
 func stripHTML(s string) string {
 	var result strings.Builder
