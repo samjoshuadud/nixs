@@ -13,7 +13,7 @@ import (
 var (
 	channel    string
 	showInfo   bool
-	searchPkg  bool
+	searchAll  bool
 	searchHM   bool
 	searchOpts bool
 	stable     bool
@@ -37,9 +37,6 @@ var rootCmd = &cobra.Command{
 			channel = "stable"
 		}
 
-		if searchPkg {
-			return runPackageSearch(query, showInfo)
-		}
 		if searchHM {
 			return runHMSearch(query)
 		}
@@ -47,7 +44,11 @@ var rootCmd = &cobra.Command{
 			return runOptsSearch(query)
 		}
 
-		// If no specific flag is provided, search everything concurrently
+		if !searchAll {
+			return runPackageSearch(query, showInfo)
+		}
+
+		// If --all is provided, search everything concurrently
 		ch := resolveChannel(channel)
 		
 		var wg sync.WaitGroup
@@ -115,7 +116,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&channel, "channel", "c", "unstable", "nixpkgs channel (unstable, stable)")
 	rootCmd.Flags().BoolVar(&stable, "stable", false, "search stable channel (alias for -c stable)")
 	rootCmd.Flags().BoolVarP(&showInfo, "info", "i", false, "show full package details")
-	rootCmd.Flags().BoolVar(&searchPkg, "pkg", false, "search packages only")
+	rootCmd.Flags().BoolVar(&searchAll, "all", false, "search all ecosystems")
 	rootCmd.Flags().BoolVar(&searchHM, "hm", false, "search Home Manager options only")
 	rootCmd.Flags().BoolVar(&searchOpts, "opt", false, "search NixOS options only")
 	rootCmd.Flags().IntVarP(&maxResults, "max", "m", 20, "max results to show")
