@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 	"github.com/samjoshuadud/nixs/internal/api"
@@ -46,18 +47,58 @@ var rootCmd = &cobra.Command{
 			return runOptsSearch(query)
 		}
 
-		// If no specific flag is provided, search everything
-		errPkg := runPackageSearch(query, showInfo)
-		if errPkg != nil {
-			fmt.Printf("packages search error: %v\n", errPkg)
+		// If no specific flag is provided, search everything concurrently
+		ch := resolveChannel(channel)
+		
+		var wg sync.WaitGroup
+		var pkgRes []api.Package
+		var optsRes []api.Option
+		var hmRes []api.Option
+		var pkgErr, optsErr, hmErr error
+
+		wg.Add(3)
+		go func() {
+			defer wg.Done()
+			pkgRes, pkgErr = api.SearchPackages(query, ch, maxResults)
+		}()
+		go func() {
+			defer wg.Done()
+			optsRes, optsErr = api.SearchOptions(query, ch, maxResults)
+		}()
+		go func() {
+			defer wg.Done()
+			hmRes, hmErr = api.SearchHomeManager(query, maxResults)
+		}()
+
+		wg.Wait()
+
+		// Print Packages
+		if pkgErr != nil {
+			fmt.Printf("packages search error: %v\n", pkgErr)
+		} else if len(pkgRes) == 0 {
+			fmt.Printf("no packages found for '%s'\n\n", query)
+		} else if showInfo {
+			display.PrintPackageInfo(pkgRes[0])
+		} else {
+			display.PrintPackageList(pkgRes)
 		}
-		errOpts := runOptsSearch(query)
-		if errOpts != nil {
-			fmt.Printf("options search error: %v\n", errOpts)
+
+		// Print NixOS Options
+		if optsErr != nil {
+			fmt.Printf("options search error: %v\n", optsErr)
+		} else if len(optsRes) == 0 {
+			fmt.Printf("no NixOS options found for '%s'\n\n", query)
+		} else {
+			display.PrintOptionList(optsRes, "NixOS")
 		}
-		errHM := runHMSearch(query)
-		if errHM != nil {
-			fmt.Printf("home manager search error: %v\n", errHM)
+
+		// Print Home Manager Options
+		if hmErr != nil {
+			fmt.Printf("home manager search error: %v\n", hmErr)
+		} else if len(hmRes) == 0 {
+			fmt.Printf("no Home Manager options found for '%s'\n\n", query)
+		} else {
+			display.PrintOptionList(hmRes, "Home Manager")
 		}
 
 		return nil
